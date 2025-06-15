@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaCamera, FaMapMarkerAlt, FaTags } from 'react-icons/fa';
+import { travelLogs } from '../services/api';
 
 const TravelLogForm = () => {
   const [formData, setFormData] = useState({
@@ -12,6 +13,8 @@ const TravelLogForm = () => {
     image: null,
     preview: ''
   });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -30,16 +33,32 @@ const TravelLogForm = () => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Here you would handle form submission to backend
-    console.log('Form submitted:', formData);
-    navigate('/logs');
+    setError('');
+    setLoading(true);
+
+    try {
+      const formDataToSend = new FormData();
+      formDataToSend.append('title', formData.title);
+      formDataToSend.append('description', formData.description);
+      formDataToSend.append('location', formData.location);
+      formDataToSend.append('tags', formData.tags);
+      formDataToSend.append('image', formData.image);
+
+      await travelLogs.create(formDataToSend);
+      navigate('/logs');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to create travel log');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="travel-log-form">
       <h2>Share Your Travel Experience</h2>
+      {error && <div className="error-message">{error}</div>}
       <form onSubmit={handleSubmit}>
         <div className="form-group">
           <label htmlFor="title">Title</label>
@@ -97,6 +116,7 @@ const TravelLogForm = () => {
             name="image"
             accept="image/*"
             onChange={handleImageChange}
+            required
           />
           {formData.preview && (
             <div className="image-preview">
@@ -105,7 +125,9 @@ const TravelLogForm = () => {
           )}
         </div>
         
-        <button type="submit" className="submit-btn">Share Your Journey</button>
+        <button type="submit" className="submit-btn" disabled={loading}>
+          {loading ? 'Sharing...' : 'Share Your Journey'}
+        </button>
       </form>
     </div>
   );
