@@ -1,23 +1,37 @@
 // components/TravelLogSearch.jsx
-import React, { useState } from 'react';
-import TravelLogCard from './TravelLogCard';
+import React, { useState, useEffect, useCallback } from 'react';
 
-const TravelLogSearch = ({ logs }) => {
+const TravelLogSearch = ({ logs = [], onSearch }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTag, setSelectedTag] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('');
 
-  // Extract unique tags and locations from logs
-  const allTags = [...new Set(logs.flatMap(log => log.tags))];
-  const allLocations = [...new Set(logs.map(log => log.location))];
+  // Ensure logs is an array
+  const logsArray = Array.isArray(logs) ? logs : [];
 
-  const filteredLogs = logs.filter(log => {
-    const matchesSearch = log.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         log.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesTag = selectedTag ? log.tags.includes(selectedTag) : true;
-    const matchesLocation = selectedLocation ? log.location === selectedLocation : true;
-    return matchesSearch && matchesTag && matchesLocation;
-  });
+  // Extract unique tags and locations from logs with null checks
+  const allTags = [...new Set(logsArray.flatMap(log => log?.tags || []) || [])];
+  const allLocations = [...new Set(logsArray.map(log => log?.location).filter(Boolean) || [])];
+
+  // Memoize the filter function
+  const filterLogs = useCallback(() => {
+    return logsArray.filter(log => {
+      if (!log) return false;
+      
+      const matchesSearch = searchTerm === '' || 
+        (log.title?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+         log.description?.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchesTag = selectedTag ? log.tags?.includes(selectedTag) : true;
+      const matchesLocation = selectedLocation ? log.location === selectedLocation : true;
+      return matchesSearch && matchesTag && matchesLocation;
+    });
+  }, [logsArray, searchTerm, selectedTag, selectedLocation]);
+
+  // Update search results when filters change
+  useEffect(() => {
+    const filteredLogs = filterLogs();
+    onSearch(filteredLogs);
+  }, [filterLogs, onSearch]);
 
   return (
     <div className="travel-log-search">
@@ -56,16 +70,6 @@ const TravelLogSearch = ({ logs }) => {
             ))}
           </select>
         </div>
-      </div>
-      
-      <div className="logs-grid">
-        {filteredLogs.length > 0 ? (
-          filteredLogs.map(log => (
-            <TravelLogCard key={log._id} log={log} />
-          ))
-        ) : (
-          <p className="no-results">No travel logs found matching your criteria.</p>
-        )}
       </div>
     </div>
   );
